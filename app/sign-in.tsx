@@ -1,6 +1,8 @@
-/* eslint-disable @typescript-eslint/no-unused-vars -- Setters are reserved for the login exercise. */
-import { useState } from 'react';
+import { useRouter } from 'expo-router';
+import { useContext, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { API_BASE_URL } from '../constants/api';
+import { AuthContext } from '../context/AuthContext';
 
 export default function SignInScreen() {
   const [email, setEmail] = useState('');
@@ -8,14 +10,58 @@ export default function SignInScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  const auth = useContext(AuthContext);
+  const router = useRouter();
+
   const handleLogin = async () => {
-    // TODO EXAM: 1. Validate email and password.
-    // TODO EXAM: 2. Set loading and clear previous errors.
-    // TODO EXAM: 3. POST to /login using fetch() and async/await.
-    // TODO EXAM: 4. Check response.ok and parse the returned JSON.
-    // TODO EXAM: 5. Pass the returned access token and user to the context login().
-    // TODO EXAM: 6. Navigate using router.replace() after successful authentication.
-    // TODO EXAM: 7. Handle login errors and stop loading in finally.
+    // 1. Validate email and password
+    if (!email.trim() || !password.trim()) {
+      setError('Please enter both email and password.');
+      return;
+    }
+
+    // 2. Set loading and clear previous errors
+    setLoading(true);
+    setError('');
+
+    try {
+      // 3. POST to /login using fetch() and async/await
+      const response = await fetch(`${API_BASE_URL}/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: email.trim(),
+          password,
+        }),
+      });
+
+      const data = await response.json();
+
+      // 4. Check response.ok and parse the returned JSON
+      if (response.ok) {
+        const token = data.token || data.accessToken;
+        const userData = data.user || { email };
+
+        // 5. Pass returned access token and user to context login()
+        if (auth?.login) {
+          await auth.login(token, userData);
+        }
+
+        // 6. Navigate using router.replace() after successful authentication
+        router.replace('/(tabs)');
+      } else {
+        setError(data.message || 'Invalid credentials. Please try again.');
+      }
+    } catch (err) {
+      // 7. Handle login errors
+      console.error('Login error:', err);
+      setError('Network error. Please check your connection and try again.');
+    } finally {
+      // Stop loading in finally
+      setLoading(false);
+    }
   };
 
   return (
@@ -24,18 +70,44 @@ export default function SignInScreen() {
         <Text style={styles.eyebrow}>CCE106 • PRACTICAL EXAMINATION</Text>
         <Text style={styles.title}>Student Service Portal</Text>
         <Text style={styles.subtitle}>Sign in to access student services.</Text>
+
         <Text style={styles.label}>Email</Text>
-        <TextInput style={styles.input} accessibilityLabel="Email" placeholder="student@example.com" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" autoCorrect={false} />
+        <TextInput
+          style={styles.input}
+          accessibilityLabel="Email"
+          placeholder="student@example.com"
+          value={email}
+          onChangeText={setEmail}
+          keyboardType="email-address"
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
+
         <Text style={styles.label}>Password</Text>
-        <TextInput style={styles.input} accessibilityLabel="Password" placeholder="Enter your password" value={password} onChangeText={setPassword} secureTextEntry />
+        <TextInput
+          style={styles.input}
+          accessibilityLabel="Password"
+          placeholder="Enter your password"
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+        />
+
         <View style={styles.feedback} accessibilityLiveRegion="polite">
           {loading && <ActivityIndicator color="#245bb2" accessibilityLabel="Signing in" />}
           {error ? <Text style={styles.error}>{error}</Text> : null}
         </View>
-        <Pressable accessibilityRole="button" style={styles.button} onPress={handleLogin} disabled={loading}>
+
+        <Pressable
+          accessibilityRole="button"
+          style={styles.button}
+          onPress={handleLogin}
+          disabled={loading}
+        >
           <Text style={styles.buttonText}>{loading ? 'Signing in…' : 'Login'}</Text>
         </Pressable>
-        <Text style={styles.note}>Exam starter: login is not implemented yet.</Text>
+
+        <Text style={styles.note}>CCE106 Student Portal</Text>
       </View>
     </ScrollView>
   );
